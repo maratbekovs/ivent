@@ -14,13 +14,13 @@
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans antialiased bg-neutral-100 text-neutral-800"> {{-- Используем новые нейтральные цвета --}}
+    <body class="font-sans antialiased bg-neutral-100 text-neutral-800">
         <div class="min-h-screen">
             @include('layouts.navigation')
 
             <!-- Page Heading -->
             @if (isset($header))
-                <header class="bg-white shadow border-b border-neutral-200"> {{-- Светлый фон, нейтральная граница --}}
+                <header class="bg-white shadow border-b border-neutral-200">
                     <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                         {{ $header }}
                     </div>
@@ -30,7 +30,7 @@
             <!-- Page Content -->
             <main class="flex">
                 <!-- Sidebar Navigation -->
-                <div class="w-64 bg-primary-800 text-white min-h-screen flex flex-col shadow-lg"> {{-- Темно-синий сайдбар --}}
+                <div class="w-64 bg-primary-800 text-white min-h-screen flex flex-col shadow-lg">
                     <div class="p-4 text-xl font-semibold text-center border-b border-primary-700">
                         {{ __('Inventory System') }}
                     </div>
@@ -38,10 +38,12 @@
                 </div>
 
                 <!-- Main Content Area -->
-                <div class="flex-1 p-4 bg-neutral-100"> {{-- Светлый основной фон --}}
+                <div class="flex-1 p-4 bg-neutral-100">
                     {{ $slot }}
                 </div>
             </main>
         </div>
+
+        @stack('scripts') {{-- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Добавлено для вывода скриптов --}}
     </body>
 </html>

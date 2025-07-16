@@ -2,13 +2,55 @@
 
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AssetCategoryController;
+use App\Http\Controllers\AssetStatusController;
+use App\Http\Controllers\AssetController;
+use App\Http\Controllers\LocationController;
+use App\Http\Controllers\FloorController;
+use App\Http\Controllers\RoomController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\StockMovementController;
+use App\Http\Controllers\RequestController;
+use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\InventoryScannerController;
+
+// Добавлено: Фасад QrCode для генерации в маршруте
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use App\Models\Asset; // Для маршрута скачивания QR актива
+use App\Models\Room;  // Для маршрута скачивания QR кабинета
+use App\Models\Request as RequestModel; // Для подсчета заявок
+use App\Models\Location; // Для подсчета локаций
+use App\Models\Floor; // Для подсчета этажей
+use App\Models\User; // Для подсчета пользователей
+use App\Models\AssetStatus; // Для подсчета по статусам
 
 Route::get('/', function () {
     return view('welcome');
 });
 
 Route::get('/dashboard', function () {
-    return view('dashboard');
+    // Получаем данные для дашборда
+    $totalAssets = Asset::count();
+    $totalRooms = Room::count();
+    $totalLocations = Location::count();
+    $totalFloors = Floor::count();
+    $totalUsers = User::count();
+    $openRequests = RequestModel::whereIn('status', ['pending', 'in_progress'])->count();
+
+    // Активы по статусам
+    $assetsByStatus = AssetStatus::withCount('assets')->get();
+
+    return view('dashboard', compact(
+        'totalAssets',
+        'totalRooms',
+        'totalLocations',
+        'totalFloors',
+        'totalUsers',
+        'openRequests',
+        'assetsByStatus'
+    ));
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
@@ -16,51 +58,95 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // Маршруты для модулей системы (пока заглушки)
-    // Группа маршрутов для активов
-    Route::prefix('assets')->name('assets.')->group(function () {
-        Route::get('/', function () { return view('assets.index'); })->name('index')->middleware('can:view_assets');
-        // Добавьте другие маршруты для CRUD: create, store, show, edit, update, destroy
-    });
+    // Маршруты для скачивания QR-кодов
+    Route::get('assets/{asset}/qrcode', function (Asset $asset) {
+        if (!$asset->qr_code_data) {
+            abort(404, __('QR Code data not found.'));
+        }
+        $svg = QrCode::size(200)->generate($asset->qr_code_data);
+        return response($svg, 200, [
+            'Content-Type' => 'image/svg+xml',
+            'Content-Disposition' => 'attachment; filename="' . ($asset->inventory_number ?? $asset->serial_number) . '_qrcode.svg"',
+        ]);
+    })->name('assets.qrcode')->middleware('can:view_assets');
 
-    // Группа маршрутов для пользователей (ответственных лиц)
-    Route::prefix('users')->name('users.')->group(function () {
-        Route::get('/', function () { return view('users.index'); })->name('index')->middleware('can:view_users');
-        // Добавьте другие маршруты для CRUD
-    });
+    Route::get('rooms/{room}/qrcode', function (Room $room) {
+        if (!$room->qr_code_data) {
+            abort(404, __('QR Code data not found.'));
+        }
+        $svg = QrCode::size(200)->generate($room->qr_code_data);
+        return response($svg, 200, [
+            'Content-Type' => 'image/svg+xml',
+            'Content-Disposition' => 'attachment; filename="' . $room->name . '_qrcode.svg"',
+        ]);
+    })->name('rooms.qrcode')->middleware('can:view_locations');
 
-    // Группа маршрутов для локаций, этажей, кабинетов
-    Route::prefix('locations')->name('locations.')->group(function () {
-        Route::get('/', function () { return view('locations.index'); })->name('index')->middleware('can:view_locations');
-        // Маршруты для floors и rooms могут быть вложенными или отдельными
-        Route::get('/floors', function () { return view('floors.index'); })->name('floors.index')->middleware('can:view_locations');
-        Route::get('/rooms', function () { return view('rooms.index'); })->name('rooms.index')->middleware('can:view_locations');
-    });
+    // Маршруты для модулей системы
+    Route::resource('asset-categories', AssetCategoryController::class)
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+        ->middleware('can:manage_asset_categories');
 
-    // Группа маршрутов для склада и перемещений
-    Route::prefix('stock-movements')->name('stock_movements.')->group(function () {
-        Route::get('/', function () { return view('stock_movements.index'); })->name('index')->middleware('can:view_stock_movements');
-    });
+    Route::resource('asset-statuses', AssetStatusController::class)
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+        ->middleware('can:manage_asset_statuses');
 
-    // Группа маршрутов для заявок
-    Route::prefix('requests')->name('requests.')->group(function () {
-        Route::get('/', function () { return view('requests.index'); })->name('index')->middleware('can:view_requests');
-    });
+    Route::resource('assets', AssetController::class)
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy', 'show'])
+        ->middleware('can:view_assets');
 
-    // Группа маршрутов для документов
-    Route::prefix('documents')->name('documents.')->group(function () {
-        Route::get('/', function () { return view('documents.index'); })->name('index')->middleware('can:view_documents');
-    });
+    Route::resource('locations', LocationController::class)
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+        ->middleware('can:manage_locations');
 
-    // Группа маршрутов для отчетов
+    Route::resource('floors', FloorController::class)
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+        ->middleware('can:manage_locations');
+
+    Route::resource('rooms', RoomController::class)
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy', 'show'])
+        ->middleware('can:manage_locations');
+
+    Route::resource('users', UserController::class)
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+        ->middleware('can:manage_users');
+
+    Route::resource('stock-movements', StockMovementController::class)
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+        ->middleware('can:manage_stock_movements');
+
+    Route::resource('requests', RequestController::class)
+        ->middleware('can:view_requests');
+
+    Route::post('documents/{document}/sign', [DocumentController::class, 'sign'])->name('documents.sign')
+        ->middleware('can:sign_documents');
+
+    Route::resource('documents', DocumentController::class)
+        ->middleware('can:view_documents');
+
     Route::prefix('reports')->name('reports.')->group(function () {
-        Route::get('/', function () { return view('reports.index'); })->name('index')->middleware('can:view_reports');
+        Route::get('/', [ReportController::class, 'index'])->name('index')
+            ->middleware('can:view_reports');
     });
 
-    // Группа маршрутов для админских настроек
     Route::prefix('admin')->name('admin.')->group(function () {
-        Route::get('/settings', function () { return view('admin.settings'); })->name('settings')->middleware('can:manage_settings');
-        // Добавьте другие маршруты для управления ролями/разрешениями
+        Route::get('/settings', [AdminController::class, 'index'])->name('settings')
+            ->middleware('can:manage_settings');
+
+        Route::get('/roles', [AdminController::class, 'rolesIndex'])->name('roles.index')
+            ->middleware('can:manage_roles');
+        Route::get('/roles/{role}/edit', [AdminController::class, 'rolesEdit'])->name('roles.edit')
+            ->middleware('can:manage_roles');
+        // ИСПРАВЛЕНО: Использование Route::put() для обновления роли
+        Route::put('/roles/{role}', [AdminController::class, 'rolesUpdate'])->name('roles.update')
+            ->middleware('can:manage_roles');
+    });
+
+    // Маршруты для сканера инвентаря
+    Route::prefix('inventory-scanner')->name('inventory_scanner.')->group(function () {
+        Route::get('/', [InventoryScannerController::class, 'index'])->name('index')
+            ->middleware('can:scan_inventory');
+        Route::post('/scan', [InventoryScannerController::class, 'scan'])->name('scan')
+            ->middleware('can:scan_inventory');
     });
 });
 

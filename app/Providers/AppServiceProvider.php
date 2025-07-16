@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+// use Spatie\Permission\PermissionRegistrar; // Удалить или закомментировать
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +20,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Удалить или закомментировать эту строку:
+        // app()->make(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

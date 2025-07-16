@@ -14,6 +14,22 @@
         </li>
         @endcan
 
+        @can('manage_asset_categories')
+        <li>
+            <x-nav-link :href="route('asset-categories.index')" :active="request()->routeIs('asset-categories.*')" class="block px-4 py-2 text-sm rounded-md hover:bg-primary-700 transition duration-150 ease-in-out">
+                {{ __('Asset Categories') }}
+            </x-nav-link>
+        </li>
+        @endcan
+
+        @can('manage_asset_statuses')
+        <li>
+            <x-nav-link :href="route('asset-statuses.index')" :active="request()->routeIs('asset-statuses.*')" class="block px-4 py-2 text-sm rounded-md hover:bg-primary-700 transition duration-150 ease-in-out">
+                {{ __('Asset Statuses') }}
+            </x-nav-link>
+        </li>
+        @endcan
+
         @can('view_users')
         <li>
             <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')" class="block px-4 py-2 text-sm rounded-md hover:bg-primary-700 transition duration-150 ease-in-out">
@@ -24,15 +40,31 @@
 
         @can('view_locations')
         <li>
-            <x-nav-link :href="route('locations.index')" :active="request()->routeIs('locations.*') || request()->routeIs('floors.*') || request()->routeIs('rooms.*')" class="block px-4 py-2 text-sm rounded-md hover:bg-primary-700 transition duration-150 ease-in-out">
-                {{ __('Locations & Rooms') }}
+            <x-nav-link :href="route('locations.index')" :active="request()->routeIs('locations.*')" class="block px-4 py-2 text-sm rounded-md hover:bg-primary-700 transition duration-150 ease-in-out">
+                {{ __('Locations') }}
+            </x-nav-link>
+        </li>
+        @endcan
+
+        @can('manage_locations')
+        <li>
+            <x-nav-link :href="route('floors.index')" :active="request()->routeIs('floors.*')" class="block px-4 py-2 text-sm rounded-md hover:bg-primary-700 transition duration-150 ease-in-out">
+                {{ __('Floors') }}
+            </x-nav-link>
+        </li>
+        @endcan
+
+        @can('manage_locations')
+        <li>
+            <x-nav-link :href="route('rooms.index')" :active="request()->routeIs('rooms.*')" class="block px-4 py-2 text-sm rounded-md hover:bg-primary-700 transition duration-150 ease-in-out">
+                {{ __('Rooms') }}
             </x-nav-link>
         </li>
         @endcan
 
         @can('view_stock_movements')
         <li>
-            <x-nav-link :href="route('stock_movements.index')" :active="request()->routeIs('stock_movements.*')" class="block px-4 py-2 text-sm rounded-md hover:bg-primary-700 transition duration-150 ease-in-out">
+            <x-nav-link :href="route('stock-movements.index')" :active="request()->routeIs('stock_movements.*')" class="block px-4 py-2 text-sm rounded-md hover:bg-primary-700 transition duration-150 ease-in-out">
                 {{ __('Warehouse & Movements') }}
             </x-nav-link>
         </li>
@@ -58,6 +90,14 @@
         <li>
             <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')" class="block px-4 py-2 text-sm rounded-md hover:bg-primary-700 transition duration-150 ease-in-out">
                 {{ __('Reports') }}
+            </x-nav-link>
+        </li>
+        @endcan
+
+        @can('scan_inventory') {{-- НОВАЯ ССЫЛКА --}}
+        <li>
+            <x-nav-link :href="route('inventory_scanner.index')" :active="request()->routeIs('inventory_scanner.*')" class="block px-4 py-2 text-sm rounded-md hover:bg-primary-700 transition duration-150 ease-in-out">
+                {{ __('Inventory Scanner') }}
             </x-nav-link>
         </li>
         @endcan

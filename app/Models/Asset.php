@@ -26,7 +26,7 @@ class Asset extends Model
         'purchase_year',
         'warranty_expires_at',
         'asset_status_id',
-        'qr_code_path',
+        'qr_code_data', // ИЗМЕНЕНО
         'notes',
     ];
 

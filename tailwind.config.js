@@ -3,9 +3,7 @@ import forms from '@tailwindcss/forms';
 
 /** @type {import('tailwindcss').Config} */
 export default {
-    // Удаляем 'darkMode: "class",' если не хотим поддержку темного режима
-    // или оставляем, если хотим, но тогда нужно будет настроить классы в HTML
-    // darkMode: "class",
+    // darkMode: "class", // Убедись, что это закомментировано или удалено
 
     content: [
         './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
@@ -16,50 +14,55 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                // Настраиваем шрифты
+                sans: ['Montserrat', ...defaultTheme.fontFamily.sans], // Основной шрифт
+                heading: ['Figtree', ...defaultTheme.fontFamily.sans], // Для заголовков
             },
             colors: {
-                // Новая цветовая палитра
-                primary: {
-                    50: '#eef2ff',
-                    100: '#e0e7ff',
-                    200: '#c7d2fe',
-                    300: '#a5b4fc',
-                    400: '#818cf8',
-                    500: '#6366f1', // Основной синий
-                    600: '#4f46e5',
-                    700: '#4338ca',
-                    800: '#3730a3',
-                    900: '#312e81',
-                    950: '#1e1b4b',
+                // Новая единая цветовая палитра
+                'primary-main': {
+                    DEFAULT: '#2d3748', // --primary-color (Dark Slate Gray)
+                    light: '#4a5568',   // --primary-color-light
+                    dark: '#1a202c',    // --primary-color-dark
                 },
-                secondary: {
-                    50: '#f0fdf4',
-                    100: '#dcfce7',
-                    200: '#bbf7d0',
-                    300: '#86efad',
-                    400: '#4ade80',
-                    500: '#22c55e', // Зеленый для акцентов
-                    600: '#16a34a',
-                    700: '#15803d',
-                    800: '#166534',
-                    900: '#14532d',
-                    950: '#0f3d23',
+                'accent-main': {
+                    DEFAULT: '#3182ce', // --accent-color (Professional Blue)
+                    hover: '#2b6cb0',   // --accent-color-hover
                 },
-                neutral: {
-                    50: '#f8fafc',
-                    100: '#f1f5f9',
-                    200: '#e2e8f0',
-                    300: '#cbd5e1',
-                    400: '#94a3b8',
-                    500: '#64748b', // Основной серый для текста
-                    600: '#475569',
-                    700: '#334155',
-                    800: '#1e293b',
-                    900: '#0f172a',
-                    950: '#020617',
-                },
+                'background-light': '#f7fafc', // --background-light
+                'surface': '#ffffff',          // --surface-color
+                'border-light': '#e2e8f0',     // --border-color
+                'text-primary': '#2d3748',     // --text-primary
+                'text-secondary': '#718096',   // --text-secondary
+                'text-on-primary': '#ffffff',  // --text-on-primary
+
+                // Дополнительные цвета из старых переменных, если они все еще нужны
+                // (Если эти цвета не используются в Tailwind-классах, их можно удалить)
+                'red-custom': '#ef4444',
+                'green-custom': '#00c650',
             },
+            // Настраиваем тени, чтобы они соответствовали твоим --shadow-sm/md/lg
+            boxShadow: {
+                'sm-custom': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+                'md-custom': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                'lg-custom': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                'accent-custom': '0 5px 15px rgba(49, 130, 206, 0.3)', // Соответствует --shadow-accent
+            },
+            // Настраиваем радиусы
+            borderRadius: {
+                'sm-custom': '4px',
+                'md-custom': '8px',
+                'lg-custom': '16px',
+            },
+            // Настраиваем отступы, чтобы они соответствовали spacing-unit
+            spacing: {
+                'unit': '8px',
+                'unit-1.5': '12px', // 1.5 * 8px
+                'unit-2': '16px',   // 2 * 8px
+                'unit-3': '24px',   // 3 * 8px
+                'unit-4': '32px',   // 4 * 8px
+                'unit-8': '64px',   // 8 * 8px
+            }
         },
     },
 

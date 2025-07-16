@@ -20,7 +20,7 @@ class Room extends Model
         'floor_id',
         'name',
         'description',
-        'qr_code_path',
+        'qr_code_data', // ИЗМЕНЕНО
     ];
 
     /**
