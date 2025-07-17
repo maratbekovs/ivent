@@ -1,63 +1,53 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-neutral-800 leading-tight">
+        <h2 class="font-semibold text-2xl text-text-primary leading-tight">
             {{ __('Reports') }}
         </h2>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-neutral-900">
-                    <h3 class="text-lg font-medium text-neutral-900 mb-4">{{ __('Overview Reports') }}</h3>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Report Card: Asset Status Summary -->
+        <div class="bg-surface p-6 rounded-lg shadow-md">
+            <h3 class="font-semibold text-lg text-text-primary mb-1">{{ __('Asset Status Summary') }}</h3>
+            <p class="text-sm text-text-secondary mb-4">{{ __('Summary of assets by their current status.') }}</p>
+            <div class="h-64">
+                <canvas id="assetStatusChart"></canvas>
+            </div>
+        </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <!-- Report Card: Asset Status Summary -->
-                        <div class="bg-neutral-50 p-6 rounded-lg shadow">
-                            <h4 class="font-semibold text-md text-primary-800 mb-2">{{ __('Asset Status Summary') }}</h4>
-                            <p class="text-neutral-700 mb-4">{{ __('Summary of assets by their current status (e.g., operational, under repair, written off).') }}</p>
-                            <div class="mt-4">
-                                <canvas id="assetStatusChart"></canvas>
-                            </div>
-                        </div>
+        <!-- Report Card: Asset Age Distribution -->
+        <div class="bg-surface p-6 rounded-lg shadow-md">
+            <h3 class="font-semibold text-lg text-text-primary mb-1">{{ __('Asset Age Distribution') }}</h3>
+            <p class="text-sm text-text-secondary mb-4">{{ __('Distribution of assets by their purchase year.') }}</p>
+            <div class="h-64">
+                <canvas id="assetAgeChart"></canvas>
+            </div>
+        </div>
 
-                        <!-- Report Card: Asset Age Distribution -->
-                        <div class="bg-neutral-50 p-6 rounded-lg shadow">
-                            <h4 class="font-semibold text-md text-primary-800 mb-2">{{ __('Asset Age Distribution') }}</h4>
-                            <p class="text-neutral-700 mb-4">{{ __('Distribution of assets by their purchase year or age.') }}</p>
-                            <div class="mt-4">
-                                <canvas id="assetAgeChart"></canvas>
-                            </div>
-                        </div>
+        <!-- Report Card: Assets by Location -->
+        <div class="bg-surface p-6 rounded-lg shadow-md">
+            <h3 class="font-semibold text-lg text-text-primary mb-1">{{ __('Assets by Location') }}</h3>
+            <p class="text-sm text-text-secondary mb-4">{{ __('Breakdown of assets by building, floor, and room.') }}</p>
+             <div class="h-64">
+                <canvas id="assetsByLocationChart"></canvas>
+            </div>
+        </div>
 
-                        <!-- Report Card: Repair Frequency -->
-                        <div class="bg-neutral-50 p-6 rounded-lg shadow">
-                            <h4 class="font-semibold text-md text-primary-800 mb-2">{{ __('Repair Frequency') }}</h4>
-                            <p class="text-neutral-700 mb-4">{{ __('Analysis of how often assets require repair or service.') }}</p>
-                            <div class="mt-4">
-                                <canvas id="repairFrequencyChart"></canvas>
-                            </div>
-                        </div>
-
-                        <!-- Report Card: Assets by Location -->
-                        <div class="bg-neutral-50 p-6 rounded-lg shadow">
-                            <h4 class="font-semibold text-md text-primary-800 mb-2">{{ __('Assets by Location') }}</h4>
-                            <p class="text-neutral-700 mb-4">{{ __('Breakdown of assets by building, floor, and room.') }}</p>
-                            <div class="mt-4">
-                                <canvas id="assetsByLocationChart"></canvas>
-                            </div>
-                        </div>
-
-                        <!-- Report Card: Assets by Responsible Person -->
-                        <div class="bg-neutral-50 p-6 rounded-lg shadow">
-                            <h4 class="font-semibold text-md text-primary-800 mb-2">{{ __('Assets by Responsible Person') }}</h4>
-                            <p class="text-neutral-700 mb-4">{{ __('List of assets assigned to each responsible person.') }}</p>
-                            <div class="mt-4">
-                                <canvas id="assetsByResponsiblePersonChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        <!-- Report Card: Assets by Responsible Person -->
+        <div class="bg-surface p-6 rounded-lg shadow-md">
+            <h3 class="font-semibold text-lg text-text-primary mb-1">{{ __('Assets by Responsible Person') }}</h3>
+            <p class="text-sm text-text-secondary mb-4">{{ __('List of assets assigned to each responsible person.') }}</p>
+             <div class="h-64">
+                <canvas id="assetsByResponsiblePersonChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Report Card: Repair Frequency -->
+        <div class="lg:col-span-2 bg-surface p-6 rounded-lg shadow-md">
+            <h3 class="font-semibold text-lg text-text-primary mb-1">{{ __('Repair Frequency') }}</h3>
+            <p class="text-sm text-text-secondary mb-4">{{ __('Analysis of how often assets require repair or service.') }}</p>
+            <div class="h-80">
+                <canvas id="repairFrequencyChart"></canvas>
             </div>
         </div>
     </div>
@@ -66,224 +56,135 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Asset Status Summary Chart
-            const assetStatusCtx = document.getElementById('assetStatusChart').getContext('2d');
-            const assetStatusData = @json($assetStatusSummary);
-            new Chart(assetStatusCtx, {
-                type: 'pie',
-                data: {
-                    labels: assetStatusData.map(row => row.name),
-                    datasets: [{
-                        label: '{{ __("Number of Assets") }}',
-                        data: assetStatusData.map(row => row.count),
-                        backgroundColor: [
-                            'rgba(99, 102, 241, 0.6)', // primary-500
-                            'rgba(34, 197, 94, 0.6)',  // secondary-500
-                            'rgba(244, 63, 94, 0.6)',  // rose-500
-                            'rgba(251, 191, 36, 0.6)', // amber-500
-                            'rgba(148, 163, 184, 0.6)',// neutral-400
-                        ],
-                        borderColor: [
-                            'rgba(99, 102, 241, 1)',
-                            'rgba(34, 197, 94, 1)',
-                            'rgba(244, 63, 94, 1)',
-                            'rgba(251, 191, 36, 1)',
-                            'rgba(148, 163, 184, 1)',
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        title: {
-                            display: true,
-                            text: '{{ __("Assets by Status") }}'
-                        }
-                    }
-                }
-            });
+            // Цветовая палитра в стиле нашего дизайна
+            const chartColors = {
+                primary: 'rgba(193, 39, 45, 0.7)',
+                primaryBorder: 'rgba(193, 39, 45, 1)',
+                accent: 'rgba(255, 107, 107, 0.7)',
+                accentBorder: 'rgba(255, 107, 107, 1)',
+                blue: 'rgba(59, 130, 246, 0.7)',
+                blueBorder: 'rgba(59, 130, 246, 1)',
+                green: 'rgba(34, 197, 94, 0.7)',
+                greenBorder: 'rgba(34, 197, 94, 1)',
+                yellow: 'rgba(251, 191, 36, 0.7)',
+                yellowBorder: 'rgba(251, 191, 36, 1)',
+                gray: 'rgba(107, 114, 128, 0.7)',
+                grayBorder: 'rgba(107, 114, 128, 1)',
+            };
 
-            // Asset Age Distribution Chart
-            const assetAgeCtx = document.getElementById('assetAgeChart').getContext('2d');
-            const assetAgeData = @json($assetAgeDistribution);
-            new Chart(assetAgeCtx, {
-                type: 'bar',
-                data: {
-                    labels: assetAgeData.map(row => row.purchase_year),
-                    datasets: [{
-                        label: '{{ __("Number of Assets") }}',
-                        data: assetAgeData.map(row => row.count),
-                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        title: {
-                            display: true,
-                            text: '{{ __("Assets by Purchase Year") }}'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: '{{ __("Count") }}'
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: '{{ __("Purchase Year") }}'
-                            }
-                        }
-                    }
-                }
-            });
+            const chartFont = 'Montserrat';
 
-            // Repair Frequency Chart
-            const repairFrequencyCtx = document.getElementById('repairFrequencyChart').getContext('2d');
-            const repairFrequencyData = @json($repairFrequency);
-            new Chart(repairFrequencyCtx, {
-                type: 'line',
-                data: {
-                    labels: repairFrequencyData.map(row => row.month),
-                    datasets: [{
-                        label: '{{ __("Number of Repair Requests") }}',
-                        data: repairFrequencyData.map(row => row.count),
-                        backgroundColor: 'rgba(255, 99, 132, 0.6)',
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        borderWidth: 1,
-                        fill: false
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        title: {
-                            display: true,
-                            text: '{{ __("Repair Requests by Month (Last 12 Months)") }}'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: '{{ __("Count") }}'
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: '{{ __("Month") }}'
-                            }
-                        }
-                    }
-                }
-            });
+            // Общие настройки для всех графиков
+            Chart.defaults.font.family = chartFont;
+            Chart.defaults.plugins.legend.position = 'bottom';
 
-            // Assets by Location Chart
-            const assetsByLocationCtx = document.getElementById('assetsByLocationChart').getContext('2d');
-            const assetsByLocationData = @json($assetsByLocation);
-            new Chart(assetsByLocationCtx, {
-                type: 'bar',
-                data: {
-                    labels: assetsByLocationData.map(row => row.name),
-                    datasets: [{
-                        label: '{{ __("Number of Assets") }}',
-                        data: assetsByLocationData.map(row => row.count),
-                        backgroundColor: 'rgba(153, 102, 255, 0.6)',
-                        borderColor: 'rgba(153, 102, 255, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        title: {
-                            display: true,
-                            text: '{{ __("Assets by Location") }}'
-                        }
+            // 1. Asset Status Summary Chart
+            const assetStatusCtx = document.getElementById('assetStatusChart')?.getContext('2d');
+            if (assetStatusCtx) {
+                const assetStatusData = @json($assetStatusSummary);
+                new Chart(assetStatusCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: assetStatusData.map(row => row.name),
+                        datasets: [{
+                            data: assetStatusData.map(row => row.count),
+                            backgroundColor: [chartColors.primary, chartColors.green, chartColors.yellow, chartColors.accent, chartColors.gray],
+                            borderWidth: 0,
+                        }]
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: '{{ __("Count") }}'
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: '{{ __("Location") }}'
-                            }
-                        }
-                    }
-                }
-            });
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
 
-            // Assets by Responsible Person Chart
-            const assetsByResponsiblePersonCtx = document.getElementById('assetsByResponsiblePersonChart').getContext('2d');
-            const assetsByResponsiblePersonData = @json($assetsByResponsiblePerson);
-            new Chart(assetsByResponsiblePersonCtx, {
-                type: 'bar',
-                data: {
-                    labels: assetsByResponsiblePersonData.map(row => row.name),
-                    datasets: [{
-                        label: '{{ __("Number of Assets") }}',
-                        data: assetsByResponsiblePersonData.map(row => row.count),
-                        backgroundColor: 'rgba(255, 159, 64, 0.6)',
-                        borderColor: 'rgba(255, 159, 64, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    indexAxis: 'y', // Горизонтальные бары
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                        },
-                        title: {
-                            display: true,
-                            text: '{{ __("Top 10 Responsible Persons by Assets") }}'
-                        }
+            // 2. Asset Age Distribution Chart
+            const assetAgeCtx = document.getElementById('assetAgeChart')?.getContext('2d');
+            if(assetAgeCtx) {
+                const assetAgeData = @json($assetAgeDistribution);
+                new Chart(assetAgeCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: assetAgeData.map(row => row.purchase_year),
+                        datasets: [{
+                            label: '{{ __("Number of Assets") }}',
+                            data: assetAgeData.map(row => row.count),
+                            backgroundColor: chartColors.primary,
+                            borderColor: chartColors.primaryBorder,
+                            borderWidth: 1,
+                            borderRadius: 4,
+                        }]
                     },
-                    scales: {
-                        x: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: '{{ __("Count") }}'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: '{{ __("Responsible Person") }}'
-                            }
-                        }
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+            }
+
+            // 3. Repair Frequency Chart
+            const repairFrequencyCtx = document.getElementById('repairFrequencyChart')?.getContext('2d');
+            if(repairFrequencyCtx) {
+                const repairFrequencyData = @json($repairFrequency);
+                new Chart(repairFrequencyCtx, {
+                    type: 'line',
+                    data: {
+                        labels: repairFrequencyData.map(row => row.month),
+                        datasets: [{
+                            label: '{{ __("Number of Repair Requests") }}',
+                            data: repairFrequencyData.map(row => row.count),
+                            backgroundColor: chartColors.accent,
+                            borderColor: chartColors.accentBorder,
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+            }
+
+            // 4. Assets by Location Chart
+            const assetsByLocationCtx = document.getElementById('assetsByLocationChart')?.getContext('2d');
+            if(assetsByLocationCtx) {
+                const assetsByLocationData = @json($assetsByLocation);
+                new Chart(assetsByLocationCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: assetsByLocationData.map(row => row.name),
+                        datasets: [{
+                            label: '{{ __("Number of Assets") }}',
+                            data: assetsByLocationData.map(row => row.count),
+                            backgroundColor: chartColors.blue,
+                            borderColor: chartColors.blueBorder,
+                            borderWidth: 1,
+                            borderRadius: 4,
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+            }
+
+            // 5. Assets by Responsible Person Chart
+            const assetsByResponsiblePersonCtx = document.getElementById('assetsByResponsiblePersonChart')?.getContext('2d');
+            if(assetsByResponsiblePersonCtx) {
+                const assetsByResponsiblePersonData = @json($assetsByResponsiblePerson);
+                new Chart(assetsByResponsiblePersonCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: assetsByResponsiblePersonData.map(row => row.name),
+                        datasets: [{
+                            label: '{{ __("Number of Assets") }}',
+                            data: assetsByResponsiblePersonData.map(row => row.count),
+                            backgroundColor: chartColors.green,
+                            borderColor: chartColors.greenBorder,
+                            borderWidth: 1,
+                            borderRadius: 4,
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } }
                     }
-                }
-            });
+                });
+            }
         });
     </script>
     @endpush

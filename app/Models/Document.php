@@ -5,65 +5,44 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Document extends Model
 {
     use HasFactory;
 
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
+     * ИСПРАВЛЕНО: Используем правильные имена полей
      */
     protected $fillable = [
-        'document_type',
-        'asset_id',
-        'related_request_id',
-        'creator_id',
+        'title',
+        'type',
         'file_path',
+        'creator_id', // Правильное имя поля
+        'reason',
+        'commission_data',
+        'asset_id', // Если у вас есть это поле
+        'related_request_id',
         'signed_by_user_id',
         'signed_at',
-        'notes',
+        'notes'
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
+        'commission_data' => 'array',
         'signed_at' => 'datetime',
     ];
 
-    /**
-     * Получить актив, к которому относится этот документ.
-     */
-    public function asset(): BelongsTo
+    public function assets(): BelongsToMany
     {
-        return $this->belongsTo(Asset::class);
+        return $this->belongsToMany(Asset::class, 'asset_document');
     }
 
     /**
-     * Получить заявку, к которой относится этот документ.
-     */
-    public function relatedRequest(): BelongsTo
-    {
-        return $this->belongsTo(Request::class, 'related_request_id');
-    }
-
-    /**
-     * Получить пользователя, который создал этот документ.
+     * ИСПРАВЛЕНО: Связь с автором документа
      */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'creator_id');
-    }
-
-    /**
-     * Получить пользователя, который подписал этот документ.
-     */
-    public function signedBy(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'signed_by_user_id');
     }
 }

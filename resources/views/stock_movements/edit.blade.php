@@ -1,94 +1,71 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-neutral-800 leading-tight">
-            {{ __('Edit Movement') }}
-        </h2>
-    </x-slot>
-
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-neutral-900">
-                    <form method="POST" action="{{ route('stock-movements.update', $movement) }}">
-                        @csrf
-                        @method('PUT')
-
-                        <!-- Asset -->
-                        <div>
-                            <x-input-label for="asset_id" :value="__('Asset')" />
-                            <select id="asset_id" name="asset_id" class="block mt-1 w-full border-neutral-300 focus:border-primary-500 focus:ring-primary-500 rounded-md shadow-sm">
-                                <option value="">{{ __('Select Asset') }}</option>
+        <x-slot name="header">
+            <h2 class="font-semibold text-2xl text-text-primary leading-tight">{{ __('Edit Movement') }}</h2>
+        </x-slot>
+        <div class="max-w-4xl mx-auto">
+            <div class="bg-surface p-6 md:p-8 rounded-lg shadow-md">
+                <form method="POST" action="{{ route('stock-movements.update', $movement) }}">
+                    @csrf
+                    @method('PUT')
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="md:col-span-2">
+                            <x-input-label for="asset_ids" :value="__('Assets')" />
+                            <select id="asset_ids" name="asset_ids[]" multiple placeholder="{{ __('Select assets...') }}" autocomplete="off">
                                 @foreach ($assets as $asset)
-                                    <option value="{{ $asset->id }}" {{ old('asset_id', $movement->asset_id) == $asset->id ? 'selected' : '' }}>
-                                        {{ $asset->inventory_number ?? $asset->serial_number }}
-                                    </option>
+                                    <option value="{{ $asset->id }}" @selected(in_array($asset->id, old('asset_ids', $selectedAssetIds)))>{{ $asset->inventory_number ?? $asset->serial_number }} ({{ $asset->category->name ?? '' }})</option>
                                 @endforeach
                             </select>
-                            <x-input-error :messages="$errors->get('asset_id')" class="mt-2" />
                         </div>
-
-                        <!-- Type -->
-                        <div class="mt-4">
+                        <div>
                             <x-input-label for="type" :value="__('Movement Type')" />
-                            <select id="type" name="type" class="block mt-1 w-full border-neutral-300 focus:border-primary-500 focus:ring-primary-500 rounded-md shadow-sm">
-                                <option value="">{{ __('Select Type') }}</option>
-                                <option value="in" {{ old('type', $movement->type) == 'in' ? 'selected' : '' }}>{{ __('Inbound') }}</option>
-                                <option value="out" {{ old('type', $movement->type) == 'out' ? 'selected' : '' }}>{{ __('Outbound') }}</option>
-                                <option value="transfer" {{ old('type', $movement->type) == 'transfer' ? 'selected' : '' }}>{{ __('Transfer') }}</option>
+                            <select id="type" name="type" class="block mt-1 w-full border-gray-300 focus:border-primary focus:ring-primary rounded-md shadow-sm">
+                                <option value="transfer" @selected(old('type', $movement->type) == 'transfer')>{{ __('Transfer') }}</option>
+                                <option value="in" @selected(old('type', $movement->type) == 'in')>{{ __('Inbound') }}</option>
+                                <option value="out" @selected(old('type', $movement->type) == 'out')>{{ __('Outbound') }}</option>
                             </select>
-                            <x-input-error :messages="$errors->get('type')" class="mt-2" />
                         </div>
-
-                        <!-- From Location -->
-                        <div class="mt-4">
-                            <x-input-label for="from_location_id" :value="__('From Location')" />
-                            <select id="from_location_id" name="from_location_id" class="block mt-1 w-full border-neutral-300 focus:border-primary-500 focus:ring-primary-500 rounded-md shadow-sm">
-                                <option value="">{{ __('Warehouse (no specific room)') }}</option>
-                                @foreach ($rooms as $room)
-                                    <option value="{{ $room->id }}" {{ old('from_location_id', $movement->from_location_id) == $room->id ? 'selected' : '' }}>
-                                        {{ $room->name }} ({{ $room->floor->name ?? '' }} - {{ $room->floor->location->name ?? '' }})
-                                    </option>
-                                @endforeach
-                            </select>
-                            <x-input-error :messages="$errors->get('from_location_id')" class="mt-2" />
-                        </div>
-
-                        <!-- To Location -->
-                        <div class="mt-4">
-                            <x-input-label for="to_location_id" :value="__('To Location')" />
-                            <select id="to_location_id" name="to_location_id" class="block mt-1 w-full border-neutral-300 focus:border-primary-500 focus:ring-primary-500 rounded-md shadow-sm">
-                                <option value="">{{ __('Warehouse (no specific room)') }}</option>
-                                @foreach ($rooms as $room)
-                                    <option value="{{ $room->id }}" {{ old('to_location_id', $movement->to_location_id) == $room->id ? 'selected' : '' }}>
-                                        {{ $room->name }} ({{ $room->floor->name ?? '' }} - {{ $room->floor->location->name ?? '' }})
-                                    </option>
-                                @endforeach
-                            </select>
-                            <x-input-error :messages="$errors->get('to_location_id')" class="mt-2" />
-                        </div>
-
-                        <!-- Movement Date -->
-                        <div class="mt-4">
+                        <div>
                             <x-input-label for="movement_date" :value="__('Movement Date')" />
                             <x-text-input id="movement_date" class="block mt-1 w-full" type="datetime-local" name="movement_date" :value="old('movement_date', $movement->movement_date->format('Y-m-d\TH:i'))" required />
-                            <x-input-error :messages="$errors->get('movement_date')" class="mt-2" />
                         </div>
-
-                        <!-- Notes -->
-                        <div class="mt-4">
+                        <div>
+                            <x-input-label for="from_location_id" :value="__('From Location')" />
+                            <select id="from_location_id" name="from_location_id" class="block mt-1 w-full border-gray-300 focus:border-primary focus:ring-primary rounded-md shadow-sm">
+                                <option value="">{{ __('Warehouse') }}</option>
+                                @foreach ($rooms as $room)
+                                    <option value="{{ $room->id }}" @selected(old('from_location_id', $movement->from_location_id) == $room->id)>{{ $room->name }} ({{ $room->floor->location->name }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <x-input-label for="to_location_id" :value="__('To Location')" />
+                            <select id="to_location_id" name="to_location_id" class="block mt-1 w-full border-gray-300 focus:border-primary focus:ring-primary rounded-md shadow-sm">
+                                <option value="">{{ __('Warehouse') }}</option>
+                                @foreach ($rooms as $room)
+                                    <option value="{{ $room->id }}" @selected(old('to_location_id', $movement->to_location_id) == $room->id)>{{ $room->name }} ({{ $room->floor->location->name }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="md:col-span-2">
                             <x-input-label for="notes" :value="__('Notes')" />
-                            <textarea id="notes" name="notes" rows="3" class="block mt-1 w-full border-neutral-300 focus:border-primary-500 focus:ring-primary-500 rounded-md shadow-sm">{{ old('notes', $movement->notes) }}</textarea>
-                            <x-input-error :messages="$errors->get('notes')" class="mt-2" />
+                            <textarea id="notes" name="notes" rows="4" class="block mt-1 w-full border-gray-300 focus:border-primary focus:ring-primary rounded-md shadow-sm">{{ old('notes', $movement->notes) }}</textarea>
                         </div>
-
-                        <div class="flex items-center justify-end mt-4">
-                            <x-primary-button class="ms-4">
-                                {{ __('Update Movement') }}
-                            </x-primary-button>
-                        </div>
-                    </form>
-                </div>
+                    </div>
+                    <div class="flex items-center justify-end mt-6">
+                        <a href="{{ route('stock-movements.index') }}" class="text-sm text-gray-600 hover:text-gray-900 mr-4">{{ __('Cancel') }}</a>
+                        <x-primary-button>{{ __('Update Movement') }}</x-primary-button>
+                    </div>
+                </form>
             </div>
         </div>
-    </div>
-</x-app-layout>
+        @push('scripts')
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                new TomSelect('#asset_ids',{
+                    plugins: ['remove_button'],
+                    create: false,
+                });
+            });
+        </script>
+        @endpush
+    </x-app-layout>

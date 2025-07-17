@@ -3,129 +3,120 @@
 namespace App\Http\Controllers;
 
 use App\Models\Document;
-use App\Models\Asset;    // Для выпадающего списка
-use App\Models\Request as RequestModel;  // Для выпадающего списка, используем псевдоним
-use Illuminate\Http\Request as HttpRequest; // Добавлено: используем псевдоним для Illuminate\Http\Request
-use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
+use App\Models\Asset;
+use App\Models\AssetStatus;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Support\Facades\Auth; // Для получения текущего пользователя
+use Illuminate\Support\Str;
 
 class DocumentController extends Controller
 {
     use AuthorizesRequests;
 
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(): View
+    public function index()
     {
         $this->authorize('view_documents');
-
-        // Загружаем связанные данные для отображения в таблице
-        $documents = Document::with(['asset', 'relatedRequest', 'creator', 'signedBy'])
-                             ->latest()
-                             ->paginate(10);
-
+        // Используем creator, так как мы исправили модель
+        $documents = Document::with('creator')->latest()->paginate(20);
         return view('documents.index', compact('documents'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create(): View
+    public function create()
     {
         $this->authorize('create_documents');
-
-        $assets = Asset::all();
-        $requests = RequestModel::all(); // Используем псевдоним RequestModel
-
-        return view('documents.create', compact('assets', 'requests'));
+        // Получаем только активы, которые еще не списаны
+        $assets = Asset::whereHas('status', function ($query) {
+            $query->where('name', '!=', 'Written Off');
+        })->orderBy('inventory_number')->get();
+        return view('documents.create', compact('assets'));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(HttpRequest $request): RedirectResponse // Используем HttpRequest
+    public function store(Request $request)
     {
         $this->authorize('create_documents');
 
         $validated = $request->validate([
-            'document_type' => 'required|in:acceptance,disposal,repair_request,inventory_order',
-            'asset_id' => 'nullable|exists:assets,id',
-            'related_request_id' => 'nullable|exists:requests,id',
-            'notes' => 'nullable|string|max:2000',
-            // file_path будет генерироваться позже, пока не требуется в форме
+            'type' => 'required|string|in:write_off_act,acceptance_act,warranty,other',
+            'title' => 'required_if:type,warranty,other|nullable|string|max:255',
+            'file' => 'required_if:type,warranty,other|nullable|file|mimes:pdf,doc,docx,jpg,png|max:2048',
+            'asset_ids' => 'required_if:type,write_off_act|array',
+            'asset_ids.*' => 'exists:assets,id',
+            'reason' => 'required_if:type,write_off_act|nullable|string',
+            'commission' => 'required_if:type,write_off_act|nullable|string',
         ]);
 
-        $validated['creator_id'] = Auth::id();
-        // file_path пока оставим пустым, позже добавим логику генерации PDF/DOCX
+        $documentData = [
+            'type' => $validated['type'],
+            'creator_id' => Auth::id(),
+        ];
 
-        Document::create($validated);
+        // Логика для генерации "Акта на списание"
+        if ($validated['type'] === 'write_off_act') {
+            $commissionMembers = array_map('trim', explode(',', $validated['commission']));
+            
+            $documentData['title'] = 'Акт на списание №' . Str::uuid()->getHex()->toString();
+            $documentData['reason'] = $validated['reason'];
+            $documentData['commission_data'] = [
+                'chairman' => $commissionMembers[0] ?? '',
+                'members' => implode(', ', array_slice($commissionMembers, 1)),
+            ];
 
-        return redirect()->route('documents.index')->with('status', __('Document created successfully!'));
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Document $document): View
-    {
-        $this->authorize('edit_documents');
-
-        $assets = Asset::all();
-        $requests = RequestModel::all(); // Используем псевдоним RequestModel
-
-        return view('documents.edit', compact('document', 'assets', 'requests'));
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(HttpRequest $request, Document $document): RedirectResponse // Используем HttpRequest
-    {
-        $this->authorize('edit_documents');
-
-        $validated = $request->validate([
-            'document_type' => 'required|in:acceptance,disposal,repair_request,inventory_order',
-            'asset_id' => 'nullable|exists:assets,id',
-            'related_request_id' => 'nullable|exists:requests,id',
-            'notes' => 'nullable|string|max:2000',
-        ]);
-
-        $document->update($validated);
-
-        return redirect()->route('documents.index')->with('status', __('Document updated successfully!'));
-    }
-
-    /**
-     * Mark the specified document as signed.
-     */
-    public function sign(Document $document): RedirectResponse
-    {
-        $this->authorize('sign_documents');
-
-        if (!$document->signed_at) {
-            $document->update([
-                'signed_by_user_id' => Auth::id(),
-                'signed_at' => now(),
+            $document = Document::create($documentData);
+            $document->assets()->attach($validated['asset_ids']);
+            
+            // Загружаем данные для PDF
+            $document->load('assets.category');
+            
+            // Генерируем PDF
+            $pdf = Pdf::loadView('pdf.write_off_act', [
+                'document' => $document,
+                'commission' => $document->commission_data,
             ]);
-            return redirect()->route('documents.index')->with('status', __('Document signed successfully!'));
+            
+            $filename = 'write-off-act-' . $document->id . '.pdf';
+            $filePath = 'documents/' . $filename;
+            Storage::disk('public')->put($filePath, $pdf->output());
+
+            // Обновляем путь к файлу и меняем статус активов
+            $document->update(['file_path' => $filePath]);
+            $statusWrittenOff = AssetStatus::where('name', 'Written Off')->first();
+            if ($statusWrittenOff) {
+                Asset::whereIn('id', $validated['asset_ids'])->update(['asset_status_id' => $statusWrittenOff->id]);
+            }
+
+        } else { // Логика для других типов документов (загрузка файла)
+            $documentData['title'] = $validated['title'];
+            if ($request->hasFile('file')) {
+                $documentData['file_path'] = $request->file('file')->store('documents', 'public');
+            }
+            Document::create($documentData);
         }
 
-        return redirect()->route('documents.index')->with('error', __('Document is already signed.'));
+        return redirect()->route('documents.index')->with('success', 'Document processed successfully.');
+    }
+    
+    // Метод для скачивания сгенерированных документов
+    public function download(Document $document)
+    {
+        $this->authorize('view_documents');
+
+        if (!$document->file_path || !Storage::disk('public')->exists($document->file_path)) {
+            abort(404, 'File not found.');
+        }
+
+        return Storage::disk('public')->download($document->file_path);
     }
 
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Document $document): RedirectResponse
+    public function destroy(Document $document)
     {
         $this->authorize('delete_documents');
-
+        if ($document->file_path) {
+            Storage::disk('public')->delete($document->file_path);
+        }
         $document->delete();
-
-        return redirect()->route('documents.index')->with('status', __('Document deleted successfully!'));
+        return redirect()->route('documents.index')->with('success', 'Document deleted successfully.');
     }
 }

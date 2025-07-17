@@ -3,156 +3,131 @@
 namespace App\Http\Controllers;
 
 use App\Models\StockMovement;
-use App\Models\Asset; // Для выпадающего списка
-use App\Models\Room;  // Для выпадающего списка
+use App\Models\Asset;
+use App\Models\Room;
 use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Support\Facades\Auth; // Для получения текущего пользователя
-use Illuminate\Support\Facades\Log; // Добавлено для отладки
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class StockMovementController extends Controller
 {
     use AuthorizesRequests;
 
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(): View
+    public function index(Request $request)
     {
-        // ВРЕМЕННАЯ ОТЛАДКА
-        if (Auth::check()) {
-            $user = Auth::user();
-            Log::info('Пользователь ' . $user->email . ' пытается просмотреть список перемещений.');
-            Log::info('Проверка view_stock_movements: ' . ($user->hasPermissionTo('view_stock_movements') ? 'ДА' : 'НЕТ'));
-        }
-
         $this->authorize('view_stock_movements');
+        $query = StockMovement::with(['assets', 'user', 'fromLocation', 'toLocation']);
 
-        // Загружаем связанные данные для отображения в таблице
-        $movements = StockMovement::with(['asset.room.floor.location', 'fromLocation.floor.location', 'toLocation.floor.location', 'user'])
-                                  ->latest()
-                                  ->paginate(10);
-
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->whereHas('assets', function ($q) use ($search) {
+                $q->where('serial_number', 'like', "%{$search}%")
+                    ->orWhere('inventory_number', 'like', "%{$search}%");
+            });
+        }
+        if ($request->filled('type')) {
+            $query->where('type', $request->input('type'));
+        }
+        $movements = $query->latest('movement_date')->paginate(20)->withQueryString();
         return view('stock_movements.index', compact('movements'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create(): View
+    public function create()
     {
-        // ВРЕМЕННАЯ ОТЛАДКА
-        if (Auth::check()) {
-            $user = Auth::user();
-            Log::info('Пользователь ' . $user->email . ' пытается создать перемещение.');
-            Log::info('Проверка create_stock_movements: ' . ($user->hasPermissionTo('create_stock_movements') ? 'ДА' : 'НЕТ'));
-            Log::info('Проверка manage_stock_movements: ' . ($user->hasPermissionTo('manage_stock_movements') ? 'ДА' : 'НЕТ'));
-        }
-
-        $this->authorize('create_stock_movements'); // Или 'manage_stock_movements' если хотим более общее разрешение
-
-        $assets = Asset::all(); // Все активы для выбора
-        $rooms = Room::with(['floor.location'])->get(); // Все комнаты для выбора (откуда/куда)
-
+        $this->authorize('create_stock_movements');
+        $assets = Asset::orderBy('inventory_number')->get();
+        $rooms = Room::with('floor.location')->get();
         return view('stock_movements.create', compact('assets', 'rooms'));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
-        $this->authorize('create_stock_movements'); // Или 'manage_stock_movements'
-
+        $this->authorize('create_stock_movements');
         $validated = $request->validate([
-            'asset_id' => 'required|exists:assets,id',
+            'asset_ids' => 'required|array|min:1',
+            'asset_ids.*' => 'exists:assets,id',
             'type' => 'required|in:in,out,transfer',
-            // from_location_id и to_location_id могут быть null, если это "склад"
+            'movement_date' => 'required|date',
             'from_location_id' => 'nullable|exists:rooms,id',
             'to_location_id' => 'nullable|exists:rooms,id',
-            'movement_date' => 'required|date',
-            'notes' => 'nullable|string|max:2000',
+            'notes' => 'nullable|string',
         ]);
 
-        // Автоматически устанавливаем пользователя, который совершил перемещение
-        $validated['user_id'] = Auth::id();
+        DB::transaction(function () use ($validated) {
+            $movement = StockMovement::create([
+                'user_id' => Auth::id(),
+                'type' => $validated['type'],
+                'movement_date' => $validated['movement_date'],
+                'from_location_id' => $validated['from_location_id'],
+                'to_location_id' => $validated['to_location_id'],
+                'notes' => $validated['notes'],
+            ]);
 
-        $movement = StockMovement::create($validated);
+            // Привязываем несколько активов к перемещению
+            $movement->assets()->attach($validated['asset_ids']);
 
-        // Обновляем текущее местоположение актива
-        $asset = Asset::find($validated['asset_id']);
-        if ($asset) {
-            // Если тип 'out' или 'transfer', устанавливаем room_id в to_location_id
-            // Если тип 'in', актив прибывает на склад (room_id = null)
-            if ($validated['type'] === 'in') {
-                $asset->room_id = null; // Актив на складе
-            } else {
-                $asset->room_id = $validated['to_location_id'];
-            }
-            $asset->save();
-        }
+            // Обновляем местоположение для каждого актива
+            Asset::whereIn('id', $validated['asset_ids'])->update(['room_id' => $validated['to_location_id']]);
+        });
 
-        return redirect()->route('stock-movements.index')->with('status', __('Movement created successfully!'));
+        return redirect()->route('stock-movements.index')->with('success', 'Movement recorded successfully.');
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(StockMovement $stockMovement): View
+    public function edit(StockMovement $stockMovement)
     {
-        $this->authorize('edit_stock_movements'); // Или 'manage_stock_movements'
+        $this->authorize('edit_stock_movements');
+        $assets = Asset::orderBy('inventory_number')->get();
+        $rooms = Room::with('floor.location')->get();
+        
+        // Получаем ID уже выбранных активов для предзаполнения
+        $selectedAssetIds = $stockMovement->assets->pluck('id')->toArray();
 
-        $assets = Asset::all();
-        $rooms = Room::with(['floor.location'])->get();
-
-        return view('stock_movements.edit', ['movement' => $stockMovement, 'assets' => $assets, 'rooms' => $rooms]);
+        return view('stock_movements.edit', [
+            'movement' => $stockMovement,
+            'assets' => $assets,
+            'rooms' => $rooms,
+            'selectedAssetIds' => $selectedAssetIds,
+        ]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, StockMovement $stockMovement): RedirectResponse
+    public function update(Request $request, StockMovement $stockMovement)
     {
-        $this->authorize('edit_stock_movements'); // Или 'manage_stock_movements'
-
+        $this->authorize('edit_stock_movements');
         $validated = $request->validate([
-            'asset_id' => 'required|exists:assets,id',
+            'asset_ids' => 'required|array|min:1',
+            'asset_ids.*' => 'exists:assets,id',
             'type' => 'required|in:in,out,transfer',
+            'movement_date' => 'required|date',
             'from_location_id' => 'nullable|exists:rooms,id',
             'to_location_id' => 'nullable|exists:rooms,id',
-            'movement_date' => 'required|date',
-            'notes' => 'nullable|string|max:2000',
+            'notes' => 'nullable|string',
         ]);
 
-        // user_id не обновляем, так как это кто совершил первое перемещение
+        DB::transaction(function () use ($validated, $stockMovement) {
+            $stockMovement->update($validated);
+            // Синхронизируем список активов
+            $stockMovement->assets()->sync($validated['asset_ids']);
+            // Обновляем местоположение для каждого актива
+            Asset::whereIn('id', $validated['asset_ids'])->update(['room_id' => $validated['to_location_id']]);
+        });
 
-        $stockMovement->update($validated);
-
-        // Обновляем текущее местоположение актива
-        $asset = Asset::find($validated['asset_id']);
-        if ($asset) {
-            if ($validated['type'] === 'in') {
-                $asset->room_id = null;
-            } else {
-                $asset->room_id = $validated['to_location_id'];
-            }
-            $asset->save();
-        }
-
-        return redirect()->route('stock-movements.index')->with('status', __('Movement updated successfully!'));
+        return redirect()->route('stock-movements.index')->with('success', 'Movement updated successfully.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(StockMovement $stockMovement): RedirectResponse
+    public function destroy(StockMovement $stockMovement)
     {
-        $this->authorize('delete_stock_movements'); // Или 'manage_stock_movements'
-
+        $this->authorize('delete_stock_movements');
         $stockMovement->delete();
+        return redirect()->route('stock-movements.index')->with('success', 'Movement deleted successfully.');
+    }
 
-        return redirect()->route('stock-movements.index')->with('status', __('Movement deleted successfully!'));
+    public function downloadPdf(StockMovement $movement)
+    {
+        $this->authorize('view_stock_movements');
+        $movement->load(['assets.category', 'assets.status', 'user', 'fromLocation', 'toLocation']);
+        $pdf = Pdf::loadView('pdf.transfer_act', compact('movement'));
+        return $pdf->download('act-transfer-'.$movement->id.'.pdf');
     }
 }

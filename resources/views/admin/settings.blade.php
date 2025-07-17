@@ -1,39 +1,26 @@
-    <x-app-layout>
-        <x-slot name="header">
-            <h2 class="font-semibold text-xl text-neutral-800 leading-tight">
-                {{ __('Admin Settings') }}
-            </h2>
-        </x-slot>
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-2xl text-text-primary leading-tight">
+            {{ __('Admin Panel') }}
+        </h2>
+    </x-slot>
 
-        <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                    <div class="p-6 text-neutral-900">
-                        <h3 class="text-lg font-medium text-neutral-900 mb-4">{{ __('Admin Dashboard') }}</h3>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            @can('manage_roles')
-                            <div class="bg-primary-50 p-6 rounded-lg shadow">
-                                <h4 class="font-semibold text-md text-primary-800 mb-2">{{ __('Manage Roles') }}</h4>
-                                <p class="text-neutral-700">{{ __('Create, edit, and assign roles to users.') }}</p>
-                                <a href="{{ route('admin.roles.index') }}" class="mt-3 inline-block text-primary-600 hover:underline">{{ __('Go to Roles Management') }}</a>
-                            </div>
-                            @endcan
-
-                            {{-- УДАЛЕНА ССЫЛКА НА ПРОСМОТР РАЗРЕШЕНИЙ --}}
-                            {{-- @can('manage_permissions')
-                            <div class="bg-secondary-50 p-6 rounded-lg shadow">
-                                <h4 class="font-semibold text-md text-secondary-800 mb-2">{{ __('View Permissions') }}</h4>
-                                <p class="text-neutral-700">{{ __('View all available permissions in the system.') }}</p>
-                                <a href="{{ route('admin.permissions.index') }}" class="mt-3 inline-block text-secondary-600 hover:underline">{{ __('Go to Permissions List') }}</a>
-                            </div>
-                            @endcan --}}
-
-                            {{-- Добавьте другие административные настройки здесь --}}
-                        </div>
-                    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Manage Roles Card -->
+        @can('manage_roles')
+        <a href="{{ route('admin.roles.index') }}" class="block p-6 bg-surface rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
+            <div class="flex items-center">
+                <div class="bg-primary/10 p-4 rounded-full mr-4">
+                    <i class="fas fa-user-shield text-2xl text-primary"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-lg text-text-primary">{{ __('Manage Roles') }}</h3>
+                    <p class="text-sm text-text-secondary mt-1">{{ __('Create and edit roles, assign permissions.') }}</p>
                 </div>
             </div>
-        </div>
-    </x-app-layout>
-    
+        </a>
+        @endcan
+        
+        {{-- Карточка для управления правами будет добавлена, когда появится соответствующий функционал --}}
+    </div>
+</x-app-layout>

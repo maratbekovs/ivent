@@ -2,14 +2,25 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
-/* Импорт шрифтов Montserrat и Figtree из Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Figtree:wght@700;800&display=swap');
+/* 1. Animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
 
-/* Глобальные сбросы и базовые стили */
-/* Tailwind Preflight уже делает многое из этого, но эти правила уточняют */
-*,
-*::before,
-*::after {
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+}
+
+/* 2. Global Resets & Base Styles */
+*, *::before, *::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
@@ -17,57 +28,141 @@
 
 html {
     scroll-behavior: smooth;
-    font-size: 16px; /* Базовый размер шрифта для rem */
 }
 
 body {
-    font-family: 'Montserrat', sans-serif; /* Основной шрифт */
+    @apply font-sans bg-background-light text-text-primary;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    /* Цвета фона и текста будут управляться Tailwind-классами в Blade */
+    animation: fadeIn 0.5s ease-in;
+    background-image: radial-gradient(circle at 90% 10%, rgba(255, 107, 107, 0.05) 0%, transparent 20%);
 }
 
-/* Стили для скроллбара */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+/* 3. Custom Component Styles */
+.main-header {
+    @apply bg-surface sticky top-0 z-[1000] transition-all duration-300 ease-in-out shadow-sm;
+    padding: 15px 0;
 }
-
-::-webkit-scrollbar-thumb {
-    background-color: theme('colors.accent-main.DEFAULT'); /* Используем цвет из Tailwind config */
-    border-radius: 10px;
+.header-content {
+    @apply container mx-auto flex justify-center items-center;
 }
-
-::-webkit-scrollbar-track {
-    background-color: theme('colors.border-light'); /* Используем цвет из Tailwind config */
+.logo-container {
+    /* Увеличена высота контейнера */
+    @apply flex justify-center items-center h-[70px] md:h-[90px];
 }
-
-/* Дополнительные CSS-переменные, которые используются в inline-стилях в welcome.blade.php */
-/* Они должны быть в :root, чтобы быть доступными для inline-стилей */
-:root {
-    --primary-color: #2d3748;
-    --primary-color-light: #4a5568;
-    --primary-color-dark: #1a202c;
-    --accent-color: #3182ce;
-    --accent-color-hover: #2b6cb0;
-    --background-light: #f7fafc;
-    --surface-color: #ffffff;
-    --border-color: #e2e8f0;
-    --text-primary: #2d3748;
-    --text-secondary: #718096;
-    --text-on-primary: #ffffff;
-    --font-primary: 'Montserrat', sans-serif;
-    --font-secondary: 'Figtree', sans-serif;
-    --spacing-unit: 8px;
-    --border-radius-sm: 4px;
-    --border-radius-md: 8px;
-    --border-radius-lg: 16px;
-    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    --shadow-accent: 0 5px 15px rgba(49, 130, 206, 0.3);
+.logo {
+    /* Увеличена высота самого логотипа */
+    @apply h-[60px] md:h-[80px] transition-all duration-300 ease-in-out;
+}
+.hero {
+    @apply text-center relative max-w-4xl mx-auto;
+    padding: 20px 0 40px;
+}
+.hero-title {
+    @apply text-3xl md:text-5xl lg:text-[3.5rem] font-extrabold mb-4 text-primary-dark;
+    line-height: 1.2;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+.hero-subtitle {
+    @apply text-lg md:text-xl lg:text-2xl text-text-secondary mb-8 max-w-2xl mx-auto font-normal;
+}
+.hero-decoration {
+    @apply absolute -z-10 opacity-10;
+    animation: float 6s ease-in-out infinite;
+}
+.decoration-1 {
+    @apply top-[10%] left-[5%] text-5xl md:text-7xl lg:text-8xl text-primary;
+    animation-delay: 0s;
+}
+.decoration-2 {
+    @apply top-[60%] right-[5%] text-4xl md:text-6xl text-secondary;
+    animation-delay: 1s;
+}
+.section-title {
+    @apply text-center text-2xl md:text-3xl lg:text-4xl font-bold mb-8 md:mb-12 relative text-primary-dark;
+}
+.section-title::after {
+    content: '';
+    @apply block w-[60px] h-[3px] lg:w-[80px] lg:h-[4px] mx-auto mt-3 rounded-sm;
+    background: linear-gradient(to right, theme('colors.primary.DEFAULT'), theme('colors.accent.DEFAULT'));
+}
+.card {
+    @apply bg-surface rounded-lg border border-border-color shadow-sm p-5 lg:p-8 block no-underline relative overflow-hidden;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    animation: fadeInUp 0.5s ease-out forwards;
+    opacity: 0;
+}
+.card:hover {
+    transform: translateY(-10px);
+    @apply shadow-lg shadow-accent;
+    border-color: rgba(255, 107, 107, 0.2);
+}
+.card::before {
+    content: '';
+    @apply absolute top-0 left-0 w-full h-[4px];
+    background: linear-gradient(to right, theme('colors.primary.DEFAULT'), theme('colors.accent.DEFAULT'));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease;
+}
+.card:hover::before {
+    transform: scaleX(1);
+}
+.card-icon {
+    @apply text-primary mb-4 text-3xl lg:text-4xl transition-colors duration-300 ease-in-out;
+}
+.card:hover .card-icon {
+    @apply text-accent;
+}
+.card-title {
+    @apply text-xl lg:text-2xl text-text-primary font-bold mb-2.5;
+}
+.card-text {
+    @apply text-base text-text-secondary mb-4;
+}
+.card-link {
+    @apply inline-flex items-center text-primary font-semibold no-underline transition-all duration-300 ease-in-out;
+}
+.card-link i {
+    @apply ml-1.5 transition-transform duration-300 ease-in-out;
+}
+.card-link:hover {
+    @apply text-accent-hover;
+}
+.card-link:hover i {
+    transform: translateX(4px);
+}
+.main-footer {
+    background: linear-gradient(135deg, theme('colors.primary.dark') 0%, theme('colors.primary.DEFAULT') 100%);
+    @apply text-text-on-primary/90 mt-auto py-6 lg:py-8;
+}
+.footer-content {
+    @apply container mx-auto flex flex-col items-center text-center;
+}
+.footer-title {
+    @apply text-lg lg:text-xl font-semibold mb-4 text-white;
+}
+.social-links {
+    @apply flex gap-4 lg:gap-6 mb-5 lg:mb-8;
+}
+.social-link {
+    @apply flex items-center justify-center w-11 h-11 lg:w-12 lg:h-12 rounded-full text-white text-xl lg:text-2xl no-underline transition-all duration-300 ease-in-out;
+    background: rgba(255, 255, 255, 0.1);
+}
+.social-link:hover {
+    background: white;
+    @apply text-primary;
+    transform: translateY(-5px);
+}
+.copyright {
+    @apply text-sm mb-2;
+    color: rgba(255, 255, 255, 0.8);
+}
+.developer {
+    @apply text-xs;
+    color: rgba(255, 255, 255, 0.7);
 }

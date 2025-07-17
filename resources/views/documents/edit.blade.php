@@ -1,79 +1,54 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-neutral-800 leading-tight">
-            {{ __('Edit Document') }}
-        </h2>
+        <h2 class="font-semibold text-2xl text-text-primary leading-tight">{{ __('Edit Document') }}</h2>
     </x-slot>
-
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-neutral-900">
-                    <form method="POST" action="{{ route('documents.update', $document) }}">
-                        @csrf
-                        @method('PUT')
-
-                        <!-- Document Type (Read-only) -->
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-surface p-6 md:p-8 rounded-lg shadow-md">
+            <form method="POST" action="{{ route('documents.update', $document) }}" enctype="multipart/form-data">
+                @csrf
+                @method('PUT')
+                <div class="space-y-6">
+                    <div>
+                        <x-input-label for="title" :value="__('Title')" />
+                        <x-text-input id="title" class="block mt-1 w-full" type="text" name="title" :value="old('title', $document->title)" required />
+                        <x-input-error :messages="$errors->get('title')" class="mt-2" />
+                    </div>
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <x-input-label for="document_type" :value="__('Document Type')" />
-                            <x-text-input id="document_type" class="block mt-1 w-full bg-neutral-100" type="text" :value="__('document_type_' . $document->document_type)" readonly />
+                            <x-input-label for="type" :value="__('Document Type')" />
+                            <select id="type" name="type" class="block mt-1 w-full border-gray-300 focus:border-primary focus:ring-primary rounded-md shadow-sm">
+                                <option value="acceptance_act" @selected(old('type', $document->type) == 'acceptance_act')>{{ __('Acceptance Act') }}</option>
+                                <option value="write_off_act" @selected(old('type', $document->type) == 'write_off_act')>{{ __('Write-off Act') }}</option>
+                                <option value="warranty" @selected(old('type', $document->type) == 'warranty')>{{ __('Warranty') }}</option>
+                                <option value="other" @selected(old('type', $document->type) == 'other')>{{ __('Other') }}</option>
+                            </select>
+                            <x-input-error :messages="$errors->get('type')" class="mt-2" />
                         </div>
-
-                        <!-- Related Asset (Optional) -->
-                        <div class="mt-4">
+                        <div>
                             <x-input-label for="asset_id" :value="__('Related Asset (optional)')" />
-                            <select id="asset_id" name="asset_id" class="block mt-1 w-full border-neutral-300 focus:border-primary-500 focus:ring-primary-500 rounded-md shadow-sm">
+                            <select id="asset_id" name="asset_id" class="block mt-1 w-full border-gray-300 focus:border-primary focus:ring-primary rounded-md shadow-sm">
                                 <option value="">{{ __('Select Asset') }}</option>
                                 @foreach ($assets as $asset)
-                                    <option value="{{ $asset->id }}" {{ old('asset_id', $document->asset_id) == $asset->id ? 'selected' : '' }}>
-                                        {{ $asset->inventory_number ?? $asset->serial_number }}
-                                    </option>
+                                    <option value="{{ $asset->id }}" @selected(old('asset_id', $document->asset_id) == $asset->id)>{{ $asset->inventory_number ?? $asset->serial_number }}</option>
                                 @endforeach
                             </select>
                             <x-input-error :messages="$errors->get('asset_id')" class="mt-2" />
                         </div>
-
-                        <!-- Related Request (Optional) -->
-                        <div class="mt-4">
-                            <x-input-label for="related_request_id" :value="__('Related Request (optional)')" />
-                            <select id="related_request_id" name="related_request_id" class="block mt-1 w-full border-neutral-300 focus:border-primary-500 focus:ring-primary-500 rounded-md shadow-sm">
-                                <option value="">{{ __('Select Request') }}</option>
-                                @foreach ($requests as $requestItem)
-                                    <option value="{{ $requestItem->id }}" {{ old('related_request_id', $document->related_request_id) == $requestItem->id ? 'selected' : '' }}>
-                                        {{ $requestItem->id }} - {{ Str::limit($requestItem->description, 30) }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            <x-input-error :messages="$errors->get('related_request_id')" class="mt-2" />
-                        </div>
-
-                        <!-- Notes -->
-                        <div class="mt-4">
-                            <x-input-label for="notes" :value="__('Notes')" />
-                            <textarea id="notes" name="notes" rows="5" class="block mt-1 w-full border-neutral-300 focus:border-primary-500 focus:ring-primary-500 rounded-md shadow-sm">{{ old('notes', $document->notes) }}</textarea>
-                            <x-input-error :messages="$errors->get('notes')" class="mt-2" />
-                        </div>
-
-                        <!-- Signed By (Read-only for display) -->
-                        <div class="mt-4">
-                            <x-input-label for="signed_by" :value="__('Signed By')" />
-                            <x-text-input id="signed_by" class="block mt-1 w-full bg-neutral-100" type="text" :value="$document->signedBy->name ?? __('Not Signed')" readonly />
-                        </div>
-
-                        <!-- Signed At (Read-only for display) -->
-                        <div class="mt-4">
-                            <x-input-label for="signed_at" :value="__('Signed At')" />
-                            <x-text-input id="signed_at" class="block mt-1 w-full bg-neutral-100" type="text" :value="$document->signed_at?->format('Y-m-d H:i') ?? __('Not Signed')" readonly />
-                        </div>
-
-                        <div class="flex items-center justify-end mt-4">
-                            <x-primary-button class="ms-4">
-                                {{ __('Update Document') }}
-                            </x-primary-button>
-                        </div>
-                    </form>
+                    </div>
+                    <div>
+                        <x-input-label for="file" :value="__('New File (optional)')" />
+                        <input id="file" name="file" type="file" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 mt-1">
+                        <x-input-error :messages="$errors->get('file')" class="mt-2" />
+                        @if($document->file_path)
+                            <p class="text-xs text-gray-500 mt-2">{{ __('Current file') }}: <a href="{{ Storage::url($document->file_path) }}" target="_blank" class="text-primary hover:underline">{{ $document->file_path }}</a></p>
+                        @endif
+                    </div>
                 </div>
-            </div>
+                <div class="flex items-center justify-end mt-6">
+                    <a href="{{ route('documents.index') }}" class="text-sm text-gray-600 hover:text-gray-900 mr-4">{{ __('Cancel') }}</a>
+                    <x-primary-button>{{ __('Update Document') }}</x-primary-button>
+                </div>
+            </form>
         </div>
     </div>
 </x-app-layout>

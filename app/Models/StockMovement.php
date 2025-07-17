@@ -5,47 +5,43 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class StockMovement extends Model
 {
     use HasFactory;
 
-    protected $table = 'stock_movements'; // Указываем имя таблицы явно
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
-        'asset_id',
+        'user_id',
         'type',
+        'movement_date',
         'from_location_id',
         'to_location_id',
-        'user_id',
-        'movement_date',
         'notes',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
         'movement_date' => 'datetime',
     ];
 
     /**
-     * Получить актив, связанный с этим перемещением.
+     * Активы, связанные с этим перемещением.
      */
-    public function asset(): BelongsTo
+    public function assets(): BelongsToMany
     {
-        return $this->belongsTo(Asset::class);
+        return $this->belongsToMany(Asset::class, 'asset_stock_movement');
     }
 
     /**
-     * Получить локацию (кабинет), откуда был перемещен актив.
+     * Пользователь, который совершил перемещение.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Локация, из которой было совершено перемещение.
      */
     public function fromLocation(): BelongsTo
     {
@@ -53,18 +49,10 @@ class StockMovement extends Model
     }
 
     /**
-     * Получить локацию (кабинет), куда был перемещен актив.
+     * Локация, в которую было совершено перемещение.
      */
     public function toLocation(): BelongsTo
     {
         return $this->belongsTo(Room::class, 'to_location_id');
-    }
-
-    /**
-     * Получить пользователя, который совершил это перемещение.
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
     }
 }

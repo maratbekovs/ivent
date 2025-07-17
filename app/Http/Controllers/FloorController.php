@@ -3,109 +3,76 @@
 namespace App\Http\Controllers;
 
 use App\Models\Floor;
-use App\Models\Location; // Для выпадающего списка
+use App\Models\Location;
 use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class FloorController extends Controller
 {
     use AuthorizesRequests;
 
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(): View
+    public function index(Request $request)
     {
-        $this->authorize('view_locations'); // Разрешение на просмотр локаций включает этажи
+        $this->authorize('view_locations');
 
-        $floors = Floor::with('location')->latest()->paginate(10);
+        $query = Floor::with('location');
 
-        return view('floors.index', compact('floors'));
+        if ($request->filled('search')) {
+            $query->where('name', 'like', '%' . $request->input('search') . '%');
+        }
+
+        if ($request->filled('location_id')) {
+            $query->where('location_id', $request->input('location_id'));
+        }
+
+        $floors = $query->latest()->paginate(15)->withQueryString();
+        $locations = Location::orderBy('name')->get();
+
+        return view('floors.index', compact('floors', 'locations'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create(): View
+    public function create()
     {
-        $this->authorize('manage_locations'); // Разрешение на управление локациями включает этажи
-
-        $locations = Location::all(); // Получаем все локации для выпадающего списка
-
+        $this->authorize('create_locations');
+        $locations = Location::all();
         return view('floors.create', compact('locations'));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
-        $this->authorize('manage_locations');
-
+        $this->authorize('create_locations');
         $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-                // Уникальность имени этажа в рамках одной локации
-                'unique:floors,name,NULL,id,location_id,' . $request->location_id,
-            ],
+            'name' => 'required|string|max:255',
             'location_id' => 'required|exists:locations,id',
-            'description' => 'nullable|string|max:1000',
+            'description' => 'nullable|string',
         ]);
-
         Floor::create($validated);
-
-        return redirect()->route('floors.index')->with('status', __('Floor created successfully!'));
+        return redirect()->route('floors.index')->with('success', 'Floor created successfully.');
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Floor $floor): View
+    public function edit(Floor $floor)
     {
-        $this->authorize('manage_locations');
-
-        $locations = Location::all(); // Получаем все локации для выпадающего списка
-
+        $this->authorize('edit_locations');
+        $locations = Location::all();
         return view('floors.edit', compact('floor', 'locations'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Floor $floor): RedirectResponse
+    public function update(Request $request, Floor $floor)
     {
-        $this->authorize('manage_locations');
-
+        $this->authorize('edit_locations');
         $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-                // Уникальность имени этажа в рамках одной локации, игнорируя текущий этаж
-                'unique:floors,name,' . $floor->id . ',id,location_id,' . $request->location_id,
-            ],
+            'name' => 'required|string|max:255',
             'location_id' => 'required|exists:locations,id',
-            'description' => 'nullable|string|max:1000',
+            'description' => 'nullable|string',
         ]);
-
         $floor->update($validated);
-
-        return redirect()->route('floors.index')->with('status', __('Floor updated successfully!'));
+        return redirect()->route('floors.index')->with('success', 'Floor updated successfully.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Floor $floor): RedirectResponse
+    public function destroy(Floor $floor)
     {
-        $this->authorize('manage_locations');
-
+        $this->authorize('delete_locations');
         $floor->delete();
-
-        return redirect()->route('floors.index')->with('status', __('Floor deleted successfully!'));
+        return redirect()->route('floors.index')->with('success', 'Floor deleted successfully.');
     }
 }

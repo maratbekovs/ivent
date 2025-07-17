@@ -5,57 +5,24 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Request extends Model
 {
     use HasFactory;
 
-    protected $table = 'requests'; // Указываем имя таблицы явно
-
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
+     * ИСПРАВЛЕНО: Заменяем 'user_id' на 'requester_id' и добавляем 'subject'.
      */
     protected $fillable = [
-        'requester_id',
-        'assigned_to_id',
         'asset_id',
-        'type',
+        'requester_id', // Используем правильное имя столбца
+        'subject',
         'description',
         'status',
-        'priority',
-        'completed_at',
     ];
 
     /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
-    protected $casts = [
-        'completed_at' => 'datetime',
-    ];
-
-    /**
-     * Получить пользователя, который создал эту заявку.
-     */
-    public function requester(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'requester_id');
-    }
-
-    /**
-     * Получить пользователя, которому назначена эта заявка.
-     */
-    public function assignedTo(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'assigned_to_id');
-    }
-
-    /**
-     * Получить актив, к которому относится эта заявка.
+     * Get the asset associated with the request.
      */
     public function asset(): BelongsTo
     {
@@ -63,10 +30,11 @@ class Request extends Model
     }
 
     /**
-     * Получить документы, связанные с этой заявкой.
+     * ИСПРАВЛЕНО: Переименовываем связь в 'requester' и указываем правильный foreign key.
+     * Get the user who created the request.
      */
-    public function documents(): HasMany
+    public function requester(): BelongsTo
     {
-        return $this->hasMany(Document::class, 'related_request_id');
+        return $this->belongsTo(User::class, 'requester_id');
     }
 }

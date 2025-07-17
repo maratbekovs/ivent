@@ -4,10 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Location;
 use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Support\Facades\Auth; // Добавлено
 
 class LocationController extends Controller
 {
@@ -16,11 +13,22 @@ class LocationController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): View
+    public function index(Request $request)
     {
         $this->authorize('view_locations');
 
-        $locations = Location::latest()->paginate(10);
+        $query = Location::query();
+
+        // Поиск по ключевому слову
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('address', 'like', "%{$search}%");
+            });
+        }
+
+        $locations = $query->latest()->paginate(15)->withQueryString();
 
         return view('locations.index', compact('locations'));
     }
@@ -28,80 +36,71 @@ class LocationController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create(): View
+    public function create()
     {
-        // ВРЕМЕННАЯ ОТЛАДКА: Проверка разрешений перед authorize()
-        if (Auth::check()) {
-            $user = Auth::user();
-            \Log::info('Пользователь ' . $user->email . ' пытается создать локацию.');
-            \Log::info('Роли пользователя: ' . implode(', ', $user->getRoleNames()->toArray()));
-            \Log::info('Все разрешения пользователя: ' . implode(', ', $user->getAllPermissions()->pluck('name')->toArray()));
-            \Log::info('Проверка manage_locations: ' . ($user->hasPermissionTo('manage_locations') ? 'ДА' : 'НЕТ'));
-            \Log::info('Проверка create_locations: ' . ($user->hasPermissionTo('create_locations') ? 'ДА' : 'НЕТ'));
-        } else {
-            \Log::info('Неавторизованный пользователь пытается создать локацию.');
-        }
-
-        $this->authorize('manage_locations'); // Здесь происходит проверка
-
+        $this->authorize('create_locations');
         return view('locations.create');
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
-        $this->authorize('manage_locations');
-
+        $this->authorize('create_locations');
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:locations',
+            'name' => 'required|string|max:255|unique:locations,name',
             'address' => 'nullable|string|max:255',
-            'description' => 'nullable|string|max:1000',
+            'description' => 'nullable|string',
         ]);
 
         Location::create($validated);
 
-        return redirect()->route('locations.index')->with('status', __('Location created successfully!'));
+        return redirect()->route('locations.index')->with('success', 'Location created successfully.');
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Location $location)
+    {
+        $this->authorize('view_locations');
+        return view('locations.show', compact('location'));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Location $location): View
+    public function edit(Location $location)
     {
-        $this->authorize('manage_locations');
-
+        $this->authorize('edit_locations');
         return view('locations.edit', compact('location'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Location $location): RedirectResponse
+    public function update(Request $request, Location $location)
     {
-        $this->authorize('manage_locations');
-
+        $this->authorize('edit_locations');
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:locations,name,' . $location->id,
             'address' => 'nullable|string|max:255',
-            'description' => 'nullable|string|max:1000',
+            'description' => 'nullable|string',
         ]);
 
         $location->update($validated);
 
-        return redirect()->route('locations.index')->with('status', __('Location updated successfully!'));
+        return redirect()->route('locations.index')->with('success', 'Location updated successfully.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Location $location): RedirectResponse
+    public function destroy(Location $location)
     {
-        $this->authorize('manage_locations');
-
+        $this->authorize('delete_locations');
         $location->delete();
-
-        return redirect()->route('locations.index')->with('status', __('Location deleted successfully!'));
+        return redirect()->route('locations.index')->with('success', 'Location deleted successfully.');
     }
 }

@@ -1,133 +1,143 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-neutral-800 leading-tight">
+        <h2 class="font-semibold text-2xl text-text-primary leading-tight">
             {{ __('Inventory Scanner') }}
         </h2>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-neutral-900">
-                    <h3 class="text-lg font-medium text-neutral-900 mb-4">{{ __('Scan QR Code') }}</h3>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- QR Code Scanner Area -->
-                        <div>
-                            <p class="text-neutral-600 mb-4">{{ __('Point your camera at a QR code to scan it.') }}</p>
-                            <div id="qr-reader" style="width:100%; max-width:500px;"></div>
-                            <div id="qr-reader-results" class="mt-4 text-sm text-neutral-700"></div>
-                        </div>
-
-                        <!-- Scanned Item Details / Inventory List -->
-                        <div>
-                            <h4 class="font-semibold text-md text-neutral-900 mb-2">{{ __('Scanned Item Details') }}</h4>
-                            <div id="scanned-item-details" class="bg-neutral-50 p-4 rounded-md border border-neutral-200 min-h-[100px]">
-                                <p class="text-neutral-600">{{ __('Scan a QR code to see details here.') }}</p>
-                            </div>
-
-                            <h4 class="font-semibold text-md text-neutral-900 mt-6 mb-2">{{ __('Inventory Scan List') }}</h4>
-                            <div id="inventory-list" class="bg-neutral-50 p-4 rounded-md border border-neutral-200 min-h-[150px]">
-                                <p class="text-neutral-600">{{ __('Scanned items will appear here.') }}</p>
-                                <ul id="scanned-items-ul" class="list-disc list-inside mt-2 space-y-1"></ul>
-                                <button id="clear-scan-list" class="mt-4 inline-flex items-center px-4 py-2 bg-rose-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-rose-700 focus:bg-rose-700 active:bg-rose-900 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 transition ease-in-out duration-150">
-                                    {{ __('Clear Scan List') }}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Scanner Column -->
+        <div class="bg-surface p-6 rounded-lg shadow-md">
+            <h3 class="font-semibold text-lg text-text-primary mb-4">{{ __('Scan QR Code') }}</h3>
+            {{-- ИЗМЕНЕНИЕ: Фон изменен с bg-gray-900 на bg-white с рамкой --}}
+            <div class="w-full aspect-square bg-white border border-gray-200 rounded-md overflow-hidden">
+                <div id="reader"></div>
             </div>
+            <div id="scanner-status" class="text-center text-sm text-text-secondary mt-4">
+                <i class="fas fa-camera mr-2"></i>{{ __('Point the camera at a QR code to scan.') }}
+            </div>
+        </div>
+
+        <!-- Result Column -->
+        <div class="bg-surface p-6 rounded-lg shadow-md">
+             <h3 class="font-semibold text-lg text-text-primary mb-4">{{ __('Scan Result') }}</h3>
+             <div id="result-container" class="min-h-[300px] transition-opacity duration-300">
+                <div id="result-placeholder" class="text-center py-12 flex flex-col items-center justify-center h-full">
+                    <i class="fas fa-qrcode text-6xl text-gray-300"></i>
+                    <p class="mt-4 text-text-secondary">{{ __('Waiting for scan...') }}</p>
+                </div>
+                <div id="result-content" class="hidden">
+                    <!-- Dynamic content will be built here by JavaScript -->
+                </div>
+                <div id="result-error" class="hidden text-center py-12 flex flex-col items-center justify-center h-full">
+                     <i class="fas fa-exclamation-triangle text-6xl text-red-400"></i>
+                    <p id="error-message" class="mt-4 text-red-600 font-semibold"></p>
+                </div>
+             </div>
         </div>
     </div>
 
     @push('scripts')
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
-        console.log('Script loaded: html5-qrcode'); // Отладка: Скрипт загружен
+        document.addEventListener('DOMContentLoaded', function () {
+            const resultPlaceholder = document.getElementById('result-placeholder');
+            const resultContent = document.getElementById('result-content');
+            const resultError = document.getElementById('result-error');
+            const errorMessage = document.getElementById('error-message');
 
-        function docReady(fn) {
-            console.log('docReady function called'); // Отладка: docReady вызвана
-            if (document.readyState === "complete" || document.readyState === "interactive") {
-                setTimeout(fn, 1);
-            } else {
-                document.addEventListener("DOMContentLoaded", fn);
+            function showLoading() {
+                resultPlaceholder.classList.add('hidden');
+                resultError.classList.add('hidden');
+                resultContent.innerHTML = `
+                    <div class="text-center py-12 flex flex-col items-center justify-center h-full">
+                        <i class="fas fa-spinner fa-spin text-4xl text-primary"></i>
+                        <p class="mt-4 text-text-secondary">{{ __('Loading data...') }}</p>
+                    </div>`;
+                resultContent.classList.remove('hidden');
             }
-        }
 
-        docReady(function() {
-            console.log('DOMContentLoaded or docReady callback executed'); // Отладка: DOM готов
+            function showError(message) {
+                resultContent.classList.add('hidden');
+                errorMessage.textContent = message;
+                resultError.classList.remove('hidden');
+            }
+            
+            function buildResultHtml(data) {
+                let detailsHtml = '';
+                let typeBadge = '';
 
-            var html5QrcodeScanner = new Html5QrcodeScanner(
-                "qr-reader", { fps: 10, qrbox: { width: 250, height: 250 }, rememberLastUsedCamera: true });
+                if (data.type === 'asset') {
+                    typeBadge = `<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-primary/10 text-primary mb-4 inline-block">{{ __('Asset') }}</span>`;
+                    detailsHtml = `
+                        <p><strong class="text-text-secondary w-32 inline-block">{{ __('Status') }}:</strong> ${data.status}</p>
+                        <p><strong class="text-text-secondary w-32 inline-block">{{ __('Location') }}:</strong> ${data.location}</p>
+                        <p><strong class="text-text-secondary w-32 inline-block">{{ __('Responsible') }}:</strong> ${data.responsible_person}</p>
+                    `;
+                } else if (data.type === 'room') {
+                    typeBadge = `<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 mb-4 inline-block">{{ __('Room') }}</span>`;
+                    detailsHtml = `
+                        <p><strong class="text-text-secondary w-32 inline-block">{{ __('Floor') }}:</strong> ${data.floor}</p>
+                        <p><strong class="text-text-secondary w-32 inline-block">{{ __('Building') }}:</strong> ${data.location}</p>
+                        <p><strong class="text-text-secondary w-32 inline-block">{{ __('Assets in room') }}:</strong> ${data.assets_count}</p>
+                    `;
+                }
 
-            console.log('Html5QrcodeScanner instance created'); // Отладка: Экземпляр сканера создан
+                resultContent.innerHTML = `
+                    <div class="flex flex-col h-full">
+                        <div>
+                            <h4 class="text-lg font-bold text-text-primary">${data.name}</h4>
+                            ${typeBadge}
+                            <div class="space-y-2 text-sm">${detailsHtml}</div>
+                        </div>
+                        <div class="mt-auto pt-6 border-t border-border-color">
+                            <a href="${data.url}" class="inline-flex items-center justify-center w-full px-4 py-2 bg-primary border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-primary-dark">
+                                {{ __('View Full Details') }}
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
 
             function onScanSuccess(decodedText, decodedResult) {
-                console.log(`Scan Success: ${decodedText}`, decodedResult); // Отладка: Успешное сканирование
-                document.getElementById('qr-reader-results').innerHTML = `{{ __('Last Scanned:') }} <b>${decodedText}</b>`;
+                new Audio('https://cdn.jsdelivr.net/gh/joshwcomeau/use-sound-hook@master/sounds/pop-up-on.mp3').play();
+                html5QrcodeScanner.pause();
+                showLoading();
 
-                fetch('{{ route('inventory_scanner.scan') }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({ qr_data: decodedText })
+                axios.post('{{ route("inventory_scanner.scan") }}', {
+                    qr_data: decodedText,
+                    _token: '{{ csrf_token() }}'
                 })
-                .then(response => {
-                    console.log('Fetch response received'); // Отладка: Ответ от сервера
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Fetch data parsed:', data); // Отладка: Данные распарсены
-                    const detailsDiv = document.getElementById('scanned-item-details');
-                    const scannedListUl = document.getElementById('scanned-items-ul');
-
-                    if (data.success) {
-                        detailsDiv.innerHTML = `
-                            <p class="text-secondary-700 font-semibold mb-2">{{ __('Found:') }} ${data.type === 'asset' ? '{{ __('Asset') }}' : '{{ __('Room') }}'}</p>
-                            <p><strong>{{ __('Name') }}:</strong> ${data.name}</p>
-                            ${data.type === 'asset' ? `<p><strong>{{ __('Serial Number') }}:</strong> ${data.serial_number}</p>` : ''}
-                            ${data.type === 'asset' ? `<p><strong>{{ __('Inventory Number') }}:</strong> ${data.inventory_number}</p>` : ''}
-                            ${data.type === 'room' ? `<p><strong>{{ __('Location') }}:</strong> ${data.location}</p>` : ''}
-                            ${data.type === 'room' ? `<p><strong>{{ __('Floor') }}:</strong> ${data.floor}</p>` : ''}
-                            <a href="${data.url}" class="text-primary-600 hover:underline mt-2 inline-block" target="_blank">{{ __('View Details') }}</a>
-                        `;
-
-                        const listItemId = `${data.type}-${data.id}`;
-                        if (!document.getElementById(listItemId)) {
-                            const listItem = document.createElement('li');
-                            listItem.id = listItemId;
-                            listItem.innerHTML = `${data.type === 'asset' ? '{{ __('Asset') }}' : '{{ __('Room') }}'}: ${data.name} (<a href="${data.url}" target="_blank" class="text-primary-600 hover:underline">{{ __('View') }}</a>)`;
-                            scannedListUl.appendChild(listItem);
-                        }
+                .then(function (response) {
+                    if (response.data.success) {
+                        buildResultHtml(response.data);
                     } else {
-                        detailsDiv.innerHTML = `<p class="text-rose-600">{{ __('Error:') }} ${data.message}</p>`;
+                        showError(response.data.message || '{{ __("Unknown error") }}');
                     }
                 })
-                .catch(error => {
-                    console.error('Fetch Error:', error); // Отладка: Ошибка запроса
-                    document.getElementById('scanned-item-details').innerHTML = `<p class="text-rose-600">{{ __('An error occurred while fetching data.') }}</p>`;
+                .catch(function (error) {
+                    const message = error.response?.data?.message || '{{ __("Item not found or type not recognized.") }}';
+                    showError(message);
+                    console.error('Lookup Error:', error);
+                })
+                .finally(function() {
+                    setTimeout(() => {
+                        if (html5QrcodeScanner.getState() === Html5QrcodeScannerState.PAUSED) {
+                            html5QrcodeScanner.resume();
+                        }
+                    }, 3000);
                 });
             }
 
-            function onScanError(errorMessage) {
-                console.warn(`Scan Error: ${errorMessage}`); // Отладка: Ошибка сканирования
-                // Можно отобразить сообщение об ошибке пользователю, если нужно
-            }
+            let html5QrcodeScanner = new Html5QrcodeScanner("reader", {
+                fps: 10,
+                qrbox: {width: 250, height: 250},
+                rememberLastUsedCamera: true,
+                supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+            }, false);
 
-            html5QrcodeScanner.render(onScanSuccess, onScanError)
-                .catch(error => {
-                    console.error('Html5QrcodeScanner render failed:', error); // Отладка: Ошибка рендеринга сканера
-                    document.getElementById('qr-reader-results').innerHTML = `<p class="text-rose-600">{{ __('Failed to start camera. Please ensure camera access is granted and no other application is using it.') }}</p>`;
-                });
-
-            document.getElementById('clear-scan-list').addEventListener('click', function() {
-                document.getElementById('scanned-items-ul').innerHTML = '';
-                document.getElementById('scanned-item-details').innerHTML = `<p class="text-neutral-600">{{ __('Scan a QR code to see details here.') }}</p>`;
-                document.getElementById('qr-reader-results').innerHTML = '';
-            });
+            html5QrcodeScanner.render(onScanSuccess, (error) => {});
         });
     </script>
     @endpush

@@ -2,122 +2,95 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Request; // Важно: используем App\Models\Request
-use App\Models\Asset;   // Для выпадающего списка
-use App\Models\User;   // Для выпадающего списка
-use Illuminate\Http\Request as HttpRequest; // Избегаем конфликта имен с моделью
-use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
+use App\Models\Request as ServiceRequest;
+use App\Models\Asset;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Support\Facades\Auth; // Для получения текущего пользователя
 
 class RequestController extends Controller
 {
     use AuthorizesRequests;
 
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(): View
+    public function index(Request $request)
     {
         $this->authorize('view_requests');
+        // ИСПРАВЛЕНО: Используем правильную связь 'requester'
+        $query = ServiceRequest::with(['asset', 'requester']);
 
-        // Загружаем связанные данные для отображения в таблице
-        $requests = Request::with(['requester', 'assignedTo', 'asset'])
-                           ->latest()
-                           ->paginate(10);
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('subject', 'like', "%{$search}%")
+                  ->orWhereHas('asset', function ($assetQuery) use ($search) {
+                      $assetQuery->where('serial_number', 'like', "%{$search}%")
+                                 ->orWhere('inventory_number', 'like', "%{$search}%");
+                  });
+            });
+        }
 
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
+
+        $requests = $query->latest()->paginate(20)->withQueryString();
         return view('requests.index', compact('requests'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create(): View
+    public function create()
     {
         $this->authorize('create_requests');
-
-        $assets = Asset::all(); // Все активы для выбора
-        // Пользователи, которым можно назначить заявку (например, IT-отдел)
-        // Пока что все пользователи, позже можно отфильтровать по ролям
-        $users = User::all();
-
-        return view('requests.create', compact('assets', 'users'));
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(HttpRequest $httpRequest): RedirectResponse // Используем HttpRequest для Request $request
-    {
-        $this->authorize('create_requests');
-
-        $validated = $httpRequest->validate([
-            'type' => 'required|in:repair,setup,purchase,other',
-            'description' => 'required|string|max:2000',
-            'asset_id' => 'nullable|exists:assets,id',
-            'priority' => 'required|in:low,medium,high,critical',
-        ]);
-
-        // Автоматически устанавливаем пользователя, который создал заявку
-        $validated['requester_id'] = Auth::id();
-        $validated['status'] = 'pending'; // Начальный статус
-
-        Request::create($validated);
-
-        return redirect()->route('requests.index')->with('status', __('Request created successfully!'));
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Request $request): View
-    {
-        $this->authorize('edit_requests');
-
         $assets = Asset::all();
-        $users = User::all(); // Все пользователи для назначения
-
-        return view('requests.edit', ['request' => $request, 'assets' => $assets, 'users' => $users]);
+        return view('requests.create', compact('assets'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(HttpRequest $httpRequest, Request $request): RedirectResponse // Используем HttpRequest
+    public function store(Request $request)
     {
-        $this->authorize('edit_requests');
-
-        $validated = $httpRequest->validate([
-            'type' => 'required|in:repair,setup,purchase,other', // Тип может быть изменен, если нужно
-            'description' => 'required|string|max:2000',
+        $this->authorize('create_requests');
+        $validated = $request->validate([
             'asset_id' => 'nullable|exists:assets,id',
-            'priority' => 'required|in:low,medium,high,critical',
-            'status' => 'required|in:pending,in_progress,completed,cancelled',
-            'assigned_to_id' => 'nullable|exists:users,id',
+            'subject' => 'required|string|max:255',
+            'description' => 'required|string',
         ]);
 
-        // Если статус меняется на 'completed', устанавливаем completed_at
-        if ($validated['status'] === 'completed' && is_null($request->completed_at)) {
-            $validated['completed_at'] = now();
-        } elseif ($validated['status'] !== 'completed') {
-            $validated['completed_at'] = null;
-        }
+        // ИСПРАВЛЕНО: Используем 'requester_id' вместо 'user_id'
+        $validated['requester_id'] = Auth::id();
+        $validated['status'] = 'new';
 
-        $request->update($validated);
-
-        return redirect()->route('requests.index')->with('status', __('Request updated successfully!'));
+        ServiceRequest::create($validated);
+        return redirect()->route('requests.index')->with('success', 'Request created successfully.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Request $request): RedirectResponse
+    public function show(ServiceRequest $request)
+    {
+        $this->authorize('view_requests');
+        // Убедимся, что модель передается с правильным именем
+        return view('requests.show', ['serviceRequest' => $request]);
+    }
+
+    public function edit(ServiceRequest $request)
+    {
+        $this->authorize('edit_requests');
+        // Убедимся, что модель передается с правильным именем
+        return view('requests.edit', ['request' => $request]);
+    }
+
+    public function update(Request $requestData, ServiceRequest $request)
+    {
+        $this->authorize('edit_requests');
+        $validated = $requestData->validate([
+            'subject' => 'required|string|max:255',
+            'description' => 'required|string',
+            'status' => 'required|in:new,in_progress,completed,rejected',
+        ]);
+        $request->update($validated);
+        return redirect()->route('requests.index')->with('success', 'Request updated successfully.');
+    }
+
+    public function destroy(ServiceRequest $request)
     {
         $this->authorize('delete_requests');
-
         $request->delete();
-
-        return redirect()->route('requests.index')->with('status', __('Request deleted successfully!'));
+        return redirect()->route('requests.index')->with('success', 'Request deleted successfully.');
     }
 }
